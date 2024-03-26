@@ -1,0 +1,3 @@
+OrderTheme;OrderService;OrderSender;OrderDescription;OrderAnswer
+testTrue;test;test;Accepet;1
+testFalse;test;test;Cancel;0
