@@ -4,15 +4,16 @@ from tensorflow.keras.models import Model
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
-
+from sklearn.preprocessing import LabelEncoder
 
 # Загрузка данных из CSV-файла
 data = pd.read_csv('Orders.csv', delimiter=';')
+print(data.head())
 labels = [0, 1]
-# Преобразование данных в формат, пригодный для подачи на вход модели
-# Например, разделение данных на входные признаки и целевую переменную
-X = data.drop(columns=['OrderTheme','OrderService', 'OrderSender', 'OrderDescription'])
-y = data['OrderAnswer']
+
+label_encoder = LabelEncoder()
+
+
 
 print("File Opened")
 
@@ -27,10 +28,10 @@ input_description = Input(shape=(max_description_lenght,))
 input_sender = Input(shape=(max_sender_lenght,))
 
 input_data = {
-    "input_theme": input_theme,
-    "input_service": input_service,
-    "input_description": input_description,
-    "input_sender": input_sender
+    "input_1": input_theme,
+    "input_2": input_service,
+    "input_3": input_description,
+    "input_4": input_sender
 }
 
 #Подсчет уникальных токенов в столбце
@@ -59,6 +60,15 @@ concatenated = Concatenate()([lstm_theme, lstm_service, lstm_description, lstm_s
 # Полносвязанный слой для классификации
 output = Dense(1, activation='sigmoid')(concatenated)
 
+
+data['OrderTheme'] = label_encoder.fit_transform(data['OrderTheme'])
+data['OrderService'] = label_encoder.fit_transform(data['OrderService'])
+data['OrderSender'] = label_encoder.fit_transform(data['OrderSender'])
+data['OrderDescription'] = label_encoder.fit_transform(data['OrderDescription'])
+# Преобразование данных в формат, пригодный для подачи на вход модели
+# Например, разделение данных на входные признаки и целевую переменную
+X = data[['OrderTheme', 'OrderService', 'OrderSender', 'OrderDescription']]
+y = data['OrderAnswer']
 # Создаем модель
 model = Model(inputs=[input_theme, input_service, input_description, input_sender], outputs=output)
 
@@ -66,26 +76,25 @@ model = Model(inputs=[input_theme, input_service, input_description, input_sende
 model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
 X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
-#
+X_train_np = {
+    "input_1": np.array(X_train['OrderTheme']),
+    "input_2": np.array(X_train['OrderService']),
+    "input_3": np.array(X_train['OrderDescription']),
+    "input_4": np.array(X_train['OrderSender'])
+}
+
+X_val_np = {
+    "input_1": np.array(X_val['OrderTheme']),
+    "input_2": np.array(X_val['OrderService']),
+    "input_3": np.array(X_val['OrderDescription']),
+    "input_4": np.array(X_val['OrderSender'])
+}
+
+y_train_np = np.array(y_train)
+y_val_np = np.array(y_val)
+
+
+
 labels_np = np.array(y)
 # Обучаем модель
-model.fit(
-    {
-        "input_theme": X_train['OrderTheme'].to_numpy(),
-        "input_service": X_train['OrderService'].to_numpy(),
-        "input_description": X_train['OrderDescription'].to_numpy(),
-        "input_sender": X_train['OrderSender'].to_numpy()
-    },
-    y_train.to_numpy(),
-    epochs=10,
-    batch_size=32,
-    validation_data=(
-        {
-            "input_theme": X_val['OrderTheme'].to_numpy(),
-            "input_service": X_val['OrderService'].to_numpy(),
-            "input_description": X_val['OrderDescription'].to_numpy(),
-            "input_sender": X_val['OrderSender'].to_numpy()
-        },
-        y_val.to_numpy()
-    )
-)
+model.fit(X_train_np, y_train_np, epochs=10, batch_size=32, validation_data=(X_val_np, y_val_np))
